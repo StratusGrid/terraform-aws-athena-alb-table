@@ -1,7 +1,40 @@
-module "template_terraform_module_starter" {
-  source  = "StratusGrid/template-terraform-module-starter/aws"
-  version = "1.0.0"
-  # source   = "github.com/StratusGrid/terraform-aws-template-terraform-module-starter"
-  name       = "${var.name_prefix}-template-terraform-module-starter${local.name_suffix}"
-  input_tags = merge(local.common_tags, {})
+module "s3_bucket" {
+  source = "terraform-aws-modules/s3-bucket/aws"
+  acl    = "private"
+  control_object_ownership = true
+  object_ownership         = "ObjectWriter"
+
+  versioning = {
+    enabled = true
+  }
+}
+
+resource "aws_athena_workgroup" "workgroup" {
+  name  = "my-athena-workgroup"
+
+  configuration {
+    publish_cloudwatch_metrics_enabled = false
+
+    result_configuration {
+      output_location = "s3://${module.s3_bucket.s3_bucket_id}/athena/"
+
+      encryption_configuration {
+        encryption_option = "SSE_S3"
+      }
+    }
+  }
+}
+
+resource "aws_athena_database" "database" {
+  name   = "my_athena_database"
+  bucket = module.s3_bucket.s3_bucket_id
+  force_destroy = true
+}
+
+module "aws_athena_alb_logs" {
+  source  = "StratusGrid/terraform-aws-athena-alb-table/aws"
+  # source   = "github.com/StratusGrid/terraform-aws-terraform-aws-athena-alb-table"
+  alb_name   = "test-lb-matt-barlow"
+  workgroup_name = aws_athena_workgroup.workgroup.name
+  database_name = aws_athena_database.database.name
 }

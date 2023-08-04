@@ -1,25 +1,53 @@
 <!-- BEGIN_TF_DOCS -->
-# template-terraform-module-starter
+# terraform-aws-athena-alb-table
 
-GitHub: [StratusGrid/template-terraform-module-starter](https://github.com/StratusGrid/template-terraform-module-starter)
+GitHub: [StratusGrid/terraform-aws-athena-alb-table](https://github.com/StratusGrid/terraform-aws-athena-alb-table)
 
-This Repo is meant to act as a template which can be used
-when creating new modules.
-
-<span style="color:red">**Notes:</span>
-- Don't forget to change the module source repo tag in `tags.tf`!
-- Please remove all of the unnecessary initial documentation from the `.terraform-docs.yml` file as they exist purely to make the module and not for continual publishing.
-- Update the examples and include the Terraform registry information and proper version constraint. A version constraint would generally look like this `~> 1.0`
+Provide an application load balancer name, workgroup name, and database name, and the module will create an Athena table to query the logs. Requires that access logs are enabled on the ALB.
+- [Creating Tables For ALB Logs](https://docs.aws.amazon.com/athena/latest/ug/application-load-balancer-logs.html#create-alb-table)
 
 ## Example
 
 ```hcl
-module "template_terraform_module_starter" {
-  source  = "StratusGrid/template-terraform-module-starter/aws"
-  version = "1.0.0"
-  # source   = "github.com/StratusGrid/terraform-aws-template-terraform-module-starter"
-  name       = "${var.name_prefix}-template-terraform-module-starter${local.name_suffix}"
-  input_tags = merge(local.common_tags, {})
+module "s3_bucket" {
+  source = "terraform-aws-modules/s3-bucket/aws"
+  acl    = "private"
+  control_object_ownership = true
+  object_ownership         = "ObjectWriter"
+
+  versioning = {
+    enabled = true
+  }
+}
+
+resource "aws_athena_workgroup" "workgroup" {
+  name  = "my-athena-workgroup"
+
+  configuration {
+    publish_cloudwatch_metrics_enabled = false
+
+    result_configuration {
+      output_location = "s3://${module.s3_bucket.s3_bucket_id}/athena/"
+
+      encryption_configuration {
+        encryption_option = "SSE_S3"
+      }
+    }
+  }
+}
+
+resource "aws_athena_database" "database" {
+  name   = "my_athena_database"
+  bucket = module.s3_bucket.s3_bucket_id
+  force_destroy = true
+}
+
+module "aws_athena_alb_logs" {
+  source  = "StratusGrid/terraform-aws-athena-alb-table/aws"
+  # source   = "github.com/StratusGrid/terraform-aws-terraform-aws-athena-alb-table"
+  alb_name   = "test-lb-matt-barlow"
+  workgroup_name = aws_athena_workgroup.workgroup.name
+  database_name = aws_athena_database.database.name
 }
 ```
 
@@ -138,14 +166,18 @@ This file contains the plugin data for TFLint to run.
 
 | Name | Type |
 |------|------|
-| [aws_iam_role.example_resource](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
+| [aws_athena_named_query.alb_access_logs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/athena_named_query) | resource |
 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_input_tags"></a> [input\_tags](#input\_input\_tags) | Map of tags to apply to resources | `map(string)` | <pre>{<br>  "Developer": "StratusGrid",<br>  "Provisioner": "Terraform"<br>}</pre> | no |
-| <a name="input_name"></a> [name](#input\_name) | name to prepend to all resource names within module | `string` | n/a | yes |
+| <a name="input_alb_name"></a> [alb\_name](#input\_alb\_name) | Name of the Application Load Balancer | `string` | n/a | yes |
+| <a name="input_database_name"></a> [database\_name](#input\_database\_name) | Name of the database to use for the table creation | `string` | n/a | yes |
+| <a name="input_partition_table"></a> [partition\_table](#input\_partition\_table) | Whether or not to create table partitioning. Recommended for large ALB sets | `bool` | `true` | no |
+| <a name="input_query_name"></a> [query\_name](#input\_query\_name) | Optionally provide a name for the saved query that creates the table | `string` | `""` | no |
+| <a name="input_table_name"></a> [table\_name](#input\_table\_name) | Optionally provide a name for the table | `string` | `""` | no |
+| <a name="input_workgroup_name"></a> [workgroup\_name](#input\_workgroup\_name) | Name of the workgroup to use for the query and query results | `string` | n/a | yes |
 
 ## Outputs
 
