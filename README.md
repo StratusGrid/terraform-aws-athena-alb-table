@@ -174,7 +174,6 @@ This file contains the plugin data for TFLint to run.
 |------|-------------|------|---------|:--------:|
 | <a name="input_alb_name"></a> [alb\_name](#input\_alb\_name) | Name of the Application Load Balancer | `string` | n/a | yes |
 | <a name="input_database_name"></a> [database\_name](#input\_database\_name) | Name of the database to use for the table creation | `string` | n/a | yes |
-| <a name="input_input_tags"></a> [input\_tags](#input\_input\_tags) | Map of tags to apply to resources | `map(string)` | <pre>{<br>  "Developer": "StratusGrid",<br>  "Provisioner": "Terraform"<br>}</pre> | no |
 | <a name="input_partition_table"></a> [partition\_table](#input\_partition\_table) | Whether or not to create table partitioning. Recommended for large ALB sets | `bool` | `true` | no |
 | <a name="input_query_name"></a> [query\_name](#input\_query\_name) | Optionally provide a name for the saved query that creates the table | `string` | `""` | no |
 | <a name="input_table_name"></a> [table\_name](#input\_table\_name) | Optionally provide a name for the table | `string` | `""` | no |
